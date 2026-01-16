@@ -36,8 +36,7 @@ The system follows an **Event-Driven Architecture**.
 
 ```mermaid
 graph TD
-    Client[Client Apps] -->|POST /v1/sms| LB[Load Balancer]
-    LB --> API[SMS Sender Service]
+    Client[Client Apps] -->|POST /v1/sms| API[SMS Sender Service]
     
     subgraph "Core Service"
         API -->|Validate| Validator
