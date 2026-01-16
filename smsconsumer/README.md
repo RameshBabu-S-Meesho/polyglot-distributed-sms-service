@@ -107,27 +107,28 @@ The project follows the standard **Go Project Layout**:
 **1. Message Consumption Logic**
 
 ```mermaid
+sequenceDiagram
     participant Kafka
     participant Consumer as Go Consumer
     participant Repo as Repository
     participant DB as MongoDB
 
     loop Worker Loop
-        Consumer->Kafka: FetchMessage()
-        Kafka-->Consumer: Byte[] Payload
-        Consumer->Consumer: Unmarshal JSON
+        Consumer->>Kafka: FetchMessage()
+        Kafka-->>Consumer: Byte[] Payload
+        Consumer->>Consumer: Unmarshal JSON
         
         alt is SMS Event
-            Consumer->Repo: Insert(SmsRecord)
-            Repo->DB: insertOne()
+            Consumer->>Repo: Insert(SmsRecord)
+            Repo->>DB: insertOne()
         else is User Event
-            Consumer->Repo: UpdateUserStatus()
-            Repo->DB: updateOne(upsert=true)
+            Consumer->>Repo: UpdateUserStatus()
+            Repo->>DB: updateOne(upsert=true)
         end
         
-        DB-->Repo: Success
-        Repo-->Consumer: Success
-        Consumer->Kafka: CommitMessages()
+        DB-->>Repo: Success
+        Repo-->>Consumer: Success
+        Consumer->>Kafka: CommitMessages()
     end
 
 ```
@@ -135,21 +136,22 @@ The project follows the standard **Go Project Layout**:
 **2. API Request Logic**
 
 ```mermaid
+sequenceDiagram
     participant Client
     participant Handler
     participant Service
     participant Repo
     participant DB
 
-    Client->Handler: GET /v1/user/12345/messages
-    Handler->Handler: Validation (10 digits?)
-    Handler->Service: GetUserMessages(ctx, "12345")
-    Service->Repo: GetByMobileNumber()
-    Repo->DB: find({ mobile_number: "12345" })
-    DB-->Repo: Cursor
-    Repo-->Service: []SmsRecord
-    Service-->Handler: []SmsRecord
-    Handler-->Client: 200 OK JSON
+    Client->>Handler: GET /v1/user/12345/messages
+    Handler->>Handler: Validation (10 digits?)
+    Handler->>Service: GetUserMessages(ctx, "12345")
+    Service->>Repo: GetByMobileNumber()
+    Repo->>DB: find({ mobile_number: "12345" })
+    DB-->>Repo: Cursor
+    Repo-->>Service: []SmsRecord
+    Service-->>Handler: []SmsRecord
+    Handler-->>Client: 200 OK JSON
 
 ```
 

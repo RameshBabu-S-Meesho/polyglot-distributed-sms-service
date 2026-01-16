@@ -22,7 +22,7 @@
 The **SMS Sender** application acts as a gateway for sending SMS notifications. It decouples the incoming HTTP request from the actual delivery process to ensure high throughput and low latency. It features:
 
 * **Non-Blocking I/O:** Immediate `202 ACCEPTED` responses while processing continues in the background.
-* **Gatekeeper Logic:** Real-time checking of blocked users via Redis (O(1) complexity).
+* **Gatekeeper Logic:** Real-time checking of blocked users via Redis ($O(1)$ complexity).
 * **Simulated Latency:** Handles artificial delays (simulating 3rd party gateways) without blocking the main thread.
 * **Event Logging:** Publishes delivery attempts and blocking actions to Kafka topics.
 
@@ -71,7 +71,7 @@ graph TD
 
 ### Data Flow
 
-1. **Send SMS:**
+1. **Send SMS (Happy Path):**
 `Client` → `Controller` → `Redis Check (Pass)` → `Return 202` → `(Async) Sleep 500ms` → `Kafka Produce (SUCCESS)`
 2. **Send SMS (Blocked):**
 `Client` → `Controller` → `Redis Check (Fail)` → `Kafka Produce (BLOCKED)` → `Return 403`
@@ -117,6 +117,58 @@ classDiagram
 
 ```
 
+### Sequence Diagrams
+
+**1. Send SMS (Success Flow)**
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Controller
+    participant Service
+    participant Redis
+    participant Dummy
+    participant Kafka
+
+    Client->>Controller: POST /send
+    Controller->>Service: sendSms()
+    Service->>Redis: isBlocked?
+    Redis-->>Service: false
+    
+    Service->>Dummy: CompletableFuture(dummy)
+    activate Dummy
+    Service-->>Controller: void
+    Controller-->>Client: 202 ACCEPTED
+    
+    Dummy-->>Dummy: sleep(500ms)
+    Dummy-->>Service: Done
+    deactivate Dummy
+    
+    Service->>Kafka: send("sms-topic", "SUCCESS")
+
+```
+
+**2. Send SMS (Blocked Flow)**
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Service
+    participant Redis
+    participant Kafka
+
+    Client->>Service: sendSms()
+    Service->>Redis: isBlocked?
+    Redis-->>Service: true
+    
+    par Async Log
+        Service->>Kafka: send("sms-topic", "BLOCKED")
+    and Error Response
+        Service-->>Client: Throw BlockedNumberException (403)
+    end
+
+```
+
 ### Database Schema
 
 **Redis Data Structure**
@@ -137,8 +189,8 @@ classDiagram
 * **Core:** Java 17+, Spring Boot 3.x
 * **Database:** Redis (Spring Data Redis)
 * **Messaging:** Apache Kafka (Spring Kafka)
-* **Utilities:** Jackson (JSON)
-* **Testing:** JUnit 5
+* **Utilities:** Jackson (JSON), Lombok (implied for DTOs if used)
+* **Testing:** JUnit 5, Mockito
 
 ---
 
@@ -213,8 +265,8 @@ Removes a number from the blocklist.
 
 ### Prerequisites
 
-* **Redis** running on `Redis:6379`
-* **Kafka** running on `kafka:9092`
+* **Redis** running on `redis:6379`
+* **Zookeeper & Kafka** running on `kafka:9092`
 * **Java 17+** installed
 * **Maven** installed
 
@@ -229,6 +281,7 @@ spring.data.redis.host=redis
 spring.data.redis.port=6379
 
 ```
+
 
 ### Troubleshooting
 
